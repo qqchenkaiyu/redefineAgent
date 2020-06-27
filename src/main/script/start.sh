@@ -1,0 +1,1 @@
+java -jar ../lib/redefineAgent-1.0-SNAPSHOT.jar list

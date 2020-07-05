@@ -16,8 +16,11 @@ import java.security.ProtectionDomain;
 
 public class RedefineAgent {
     static String outputDir;
-
+static Instrumentation mInstrumentation;
+static MyClassFileTransformer classFileTransformer=new MyClassFileTransformer();
     public static void agentmain(String agentargs, Instrumentation instrumentation) {
+mInstrumentation=instrumentation;
+        mInstrumentation.addTransformer(classFileTransformer,true);
         Class[] allLoadedClasses = instrumentation.getAllLoadedClasses();
         outputDir = agentargs.split(" ")[2];
         if (agentargs.startsWith("compile")) {
@@ -66,5 +69,30 @@ public class RedefineAgent {
         File file = new File(path);
         file.getParentFile().mkdirs();
         file.deleteOnExit();
+    }
+   static class MyClassFileTransformer implements ClassFileTransformer{
+        Class classToChange;
+      public   void getClassFile(Class clazz){
+            classToChange=clazz;
+            try {
+                mInstrumentation.retransformClasses(classToChange);
+            } catch (UnmodifiableClassException e) {
+                e.printStackTrace();
+            }
+        }
+       @Override
+        public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws IllegalClassFormatException {
+            try {
+                if(classBeingRedefined==null||!classBeingRedefined.getName().equals(classToChange.getName()))return null;
+                String classPath = getClassPath(classToChange.getName());
+                System.out.println("输出class文件 "+ classPath);
+                new File(classPath).deleteOnExit();
+                new File(classPath).createNewFile();
+                Files.write(Paths.get(classPath),classfileBuffer, StandardOpenOption.CREATE);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return classfileBuffer;
+        }
     }
 }

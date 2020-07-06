@@ -4,14 +4,22 @@ import com.strobel.decompiler.Decompiler;
 import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.PlainTextOutput;
 
-import javax.tools.*;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.net.URI;
-import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.tools.JavaCompiler;
+import javax.tools.JavaFileObject;
+import javax.tools.SimpleJavaFileObject;
+import javax.tools.ToolProvider;
 
 /**
  * Created by Administrator on 2019/4/3.
@@ -25,22 +33,32 @@ public class CompileUtil {
      * @return Class
      */
 
-    private static Class<?> compile(String className, String javaCodes,String outDir) {
-        System.out.println(className);
+    private static Class<?> compile(String className, String javaCodes,String outDir) throws Exception{
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        if(compiler==null){
+            throw new RuntimeException("ToolProvider.getSystemJavaCompiler() == null   java_home maybe not set!!");
+        }
+        // 用来获取编译错误时的错误信息
+        /** START 以下代码在打包成web程序时必须开启，在编辑器里面时请屏蔽 */
+        StringBuilder cp = new StringBuilder();
+        URLClassLoader urlClassLoader = (URLClassLoader) Thread.currentThread().getContextClassLoader();
+        for (URL url : urlClassLoader.getURLs()) {
+            cp.append(url.getFile()).append(File.pathSeparator);
+        }
+        /**  END  以上代码在打包成web程序时必须开启，在编辑器里面时请屏蔽 */
         StrSrcJavaObject srcObject = new StrSrcJavaObject(className, javaCodes);
         Iterable<? extends JavaFileObject> fileObjects = Arrays.asList(srcObject);
-        String flag = "-d";
-        Iterable<String> options = Arrays.asList(flag, outDir);
-        JavaCompiler.CompilationTask task = compiler.getTask(null, null, null, options, null, fileObjects);
+        Iterable<String> options = Arrays.asList("-d", outDir,"-classpath",cp.toString());
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        OutputStreamWriter writer = new OutputStreamWriter(byteArrayOutputStream);
+        JavaCompiler.CompilationTask task = compiler.getTask(writer, null, null, options, null, fileObjects);
         boolean result = task.call();
         if (result == true) {
-            try {
-                return Class.forName(className);
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            }
+             return Class.forName(className);
         }
+        writer.flush();
+        WriterLog.log("编译时添加的cp "+cp.toString());
+        WriterLog.log(new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8));
         return null;
 
     }
@@ -52,7 +70,7 @@ public static String decompile(Class clazz){
     String unicodeStr2String = StringUnicodeUtil.unicodeStr2String(plainTextOutput.toString());
     return unicodeStr2String;
 }
-    public static Class<?> compile(String javaCodes,String outDir ) throws IOException {
+    public static Class<?> compile(String javaCodes,String outDir ) throws Exception {
       return compile(getClassName(javaCodes),javaCodes,outDir);
     }
 
@@ -61,7 +79,7 @@ public static String decompile(Class clazz){
 
     private static String getClassName(String javaCodes) throws IOException {
 
-        Pattern m = Pattern.compile("^package\\s[\\w+.]*");
+        Pattern m = Pattern.compile("package\\s[\\w+.]*");
         Matcher matcher = m.matcher(javaCodes);
         String packgename = "";
 if(matcher.find()){
@@ -89,14 +107,8 @@ if(matcher.find()){
         }
     }
 
-    public static void main(String[] args) throws IOException {
-        Class<?> compile = compile("package com.example.demo;\n" +
-                "\n" +
-                "public class BBking\n" +
-                "{\n" +
-                "    public void bb() {\n" +
-                "        System.out.println(\"我就爱b--------b\");\n" +
-                "    }\n" +
-                "}\n", "F://");
+    public static void main(String[] args) throws Exception {
+ 
     }
+
 }

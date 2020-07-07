@@ -53,12 +53,15 @@ public class RedefineAgent {
                 if (!file.exists()) {
                     System.out.println(" file not found " + file.getAbsolutePath());
                 }
-                Class<?> compile = CompileUtil.compile(
-                    new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8), outputDir);
-                String classPath = getClassPath(compile.getName());
+                String lib=null;
+                if(agentargs.split(" ").length>3)
+                    lib=agentargs.split(" ")[3];
+                CompileUtil.compile(
+                    new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8), outputDir,lib);
+                String classPath = getClassPath(classFileTransformer.classToChange.getName());
                 ensureDir(classPath);
                 byte[] bytes = Files.readAllBytes(Paths.get(classPath));
-                ClassDefinition classDefinition = new ClassDefinition(compile, bytes);
+                ClassDefinition classDefinition = new ClassDefinition(classFileTransformer.classToChange, bytes);
                 instrumentation.redefineClasses(classDefinition);
 
             }

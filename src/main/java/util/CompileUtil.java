@@ -33,7 +33,7 @@ public class CompileUtil {
      * @return Class
      */
 
-    private static Class<?> compile(String className, String javaCodes,String outDir) throws Exception{
+    private static void compile(String className, String javaCodes,String outDir,String lib) throws Exception{
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if(compiler==null){
             throw new RuntimeException("ToolProvider.getSystemJavaCompiler() == null   java_home maybe not set!!");
@@ -45,6 +45,16 @@ public class CompileUtil {
         for (URL url : urlClassLoader.getURLs()) {
             cp.append(url.getFile()).append(File.pathSeparator);
         }
+        if(lib!=null){
+            WriterLog.log("list file"+lib);
+            File[] list = new File(lib).listFiles();
+            WriterLog.log("list file length"+list.length);
+            for (File jar : list) {
+                if(jar.getName().endsWith("jar"))
+                cp.append(jar.getAbsolutePath()).append(File.pathSeparator);
+            }
+        }
+
         /**  END  以上代码在打包成web程序时必须开启，在编辑器里面时请屏蔽 */
         StrSrcJavaObject srcObject = new StrSrcJavaObject(className, javaCodes);
         Iterable<? extends JavaFileObject> fileObjects = Arrays.asList(srcObject);
@@ -54,12 +64,12 @@ public class CompileUtil {
         JavaCompiler.CompilationTask task = compiler.getTask(writer, null, null, options, null, fileObjects);
         boolean result = task.call();
         if (result == true) {
-             return Class.forName(className);
+             return ;
         }
         writer.flush();
         WriterLog.log("编译时添加的cp "+cp.toString());
         WriterLog.log(new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8));
-        return null;
+        return ;
 
     }
 
@@ -70,8 +80,8 @@ public static String decompile(Class clazz){
     String unicodeStr2String = StringUnicodeUtil.unicodeStr2String(plainTextOutput.toString());
     return unicodeStr2String;
 }
-    public static Class<?> compile(String javaCodes,String outDir ) throws Exception {
-      return compile(getClassName(javaCodes),javaCodes,outDir);
+    public static void compile(String javaCodes,String outDir,String lib ) throws Exception {
+      compile(getClassName(javaCodes),javaCodes,outDir,lib);
     }
 
     //从字符串中截取全类名
@@ -108,7 +118,7 @@ if(matcher.find()){
     }
 
     public static void main(String[] args) throws Exception {
- 
+
     }
 
 }
